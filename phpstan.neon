@@ -1,0 +1,21 @@
+# The highest level, with no baseline and no ignores.
+#
+# It is also what guards two hazards this package makes for itself. Its namespace is
+# OffsetWP\Twig\Extension, so a partially qualified Twig\TwigFunction written anywhere
+# inside it resolves to a class under that namespace, which does not exist. And the
+# helpers of the extension live in OffsetWP\Twig\Extension\WordPressExtension, a namespace
+# named after the class it serves, so an unqualified WordPressExtension written inside it
+# names a class beneath it, which does not exist either. At this level an unknown class is
+# an error, so neither mistake can reach a commit. Every class is imported with a use
+# statement, always.
+#
+# tests/wordpress.php and tests/plugin.php are analysed like everything else, and they are
+# what teaches the analyser the functions the tests call. There is no stub file read here:
+# the stubs of WordPress are a dependency of one test, which loads them in a process of
+# its own.
+parameters:
+	level: max
+	paths:
+		- src
+		- tests
+	tmpDir: .phpstan.cache

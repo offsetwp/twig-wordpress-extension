@@ -1,0 +1,78 @@
+{
+	"name": "offsetwp/twig-wordpress-extension",
+	"type": "library",
+	"description": "The functions of WordPress in Twig: {{ the_permalink() }}, {{ wp_head() }}, and fn() for every other one",
+	"license": "MIT",
+	"authors": [
+		{
+			"name": "Jérôme Wohlschlegel",
+			"email": "jerome.wohlschlegel@gmail.com"
+		}
+	],
+	"homepage": "https://offsetwp.github.io",
+	"support": {
+		"issues": "https://github.com/offsetwp/twig-wordpress-extension/issues",
+		"source": "https://github.com/offsetwp/twig-wordpress-extension"
+	},
+	"keywords": [
+		"offsetwp",
+		"wordpress",
+		"twig",
+		"extension",
+		"template",
+		"template-tags",
+		"theme"
+	],
+	"autoload": {
+		"psr-4": {
+			"OffsetWP\\Twig\\Extension\\": "src/"
+		}
+	},
+	"autoload-dev": {
+		"psr-4": {
+			"OffsetWP\\Twig\\Extension\\WordPressExtension\\Tests\\": "tests/"
+		}
+	},
+	"require": {
+		"php": ">=8.5",
+		"twig/twig": "^3.27"
+	},
+	"require-dev": {
+		"offsetwp/framework": "^1.1",
+		"offsetwp/twig-bundle": "^1.1",
+		"php-stubs/wordpress-stubs": "^6.5 || ^7.0",
+		"phpstan/phpstan": "^2.2",
+		"phpunit/phpunit": "^13.3",
+		"symfony/dependency-injection": "^8.1",
+		"wp-coding-standards/wpcs": "^3.4.1"
+	},
+	"suggest": {
+		"offsetwp/twig-bundle": "Registers this extension in an OffsetWP kernel with one line of configuration"
+	},
+	"minimum-stability": "stable",
+	"prefer-stable": true,
+	"scripts": {
+		"lint": "@php vendor/bin/phpcs",
+		"lint:fix": "@php vendor/bin/phpcbf",
+		"stan": "@php vendor/bin/phpstan analyse",
+		"test": "@php vendor/bin/phpunit",
+		"ci": [
+			"@lint",
+			"@stan",
+			"@test"
+		]
+	},
+	"scripts-descriptions": {
+		"lint": "Check the coding standard over src and tests.",
+		"lint:fix": "Fix every coding-standard violation that can be fixed automatically.",
+		"stan": "Run the static analyser over src and tests.",
+		"test": "Run the unit, integration and usage suites.",
+		"ci": "Run the coding standard, the static analyser and the test suites, in that order."
+	},
+	"config": {
+		"allow-plugins": {
+			"dealerdirect/phpcodesniffer-composer-installer": true
+		},
+		"sort-packages": true
+	}
+}
