@@ -16,6 +16,7 @@
 - 🖨️ What a function prints is given back, so it can be kept, filtered and tested like any value
 - 🏷️ Named arguments, as WordPress names them: `{{ the_title(before='<h1>', after='</h1>') }}`
 - 🧩 `fn()` for every other function of WordPress, of a plugin or of a theme
+- 🧭 `site`, `theme` and `user` in every template: `{{ site.name }}`, `{{ theme.url }}`, `{% if user.logged_in %}`
 - 🪶 One extension, and Twig as its only dependency
 
 ## Installation
@@ -53,30 +54,61 @@ $twig->addExtension( new \OffsetWP\Twig\Extension\WordPressExtension() );
 The functions are those of WordPress itself, so a template calling them renders once WordPress
 has loaded: from a theme, a plugin or a mu-plugin, which is where an OffsetWP kernel boots.
 
-## Calling a function
+## Usage
+
+A template of a theme calls the functions of WordPress under their own names, and reads the site,
+the theme and the user who is logged in from three variables. What belongs to the page, its posts
+here, comes from the file of the theme that renders it:
+
+```php
+// index.php, in the theme
+twig()->display( 'index.twig', array( 'posts' => $wp_query->posts ) );
+```
 
 ```twig
 <html {{ language_attributes() }}>
-<head>
-	<meta charset="{{ bloginfo('charset') }}">
-	{{ wp_head() }}
-</head>
-<body {{ body_class('flex min-h-screen') }}>
-	{{ wp_body_open() }}
+	<head>
+		<meta charset="{{ site.charset }}">
 
-	<a href="{{ esc_url(home_url('/')) }}" rel="home">{{ bloginfo('name') }}</a>
-	{{ wp_nav_menu({ theme_location: 'primary', container: 'nav', fallback_cb: false }) }}
+		{{ wp_head() }}
+	</head>
+	<body {{ body_class('flex min-h-screen') }}>
+		{{ wp_body_open() }}
 
-	{% for post in posts %}
-		<h2><a href="{{ the_permalink(post) }}">{{ get_the_title(post) }}</a></h2>
-		{{ get_the_post_thumbnail(post, 'large', { class: 'card__image' }) }}
-	{% endfor %}
+		<a href="{{ site.url('/') }}" rel="home">
+			<img src="{{ theme.url }}/logo.svg" alt="">
+			{{ site.name }}
+		</a>
 
-	{{ the_posts_pagination({ mid_size: 2 }) }}
-	{{ wp_footer() }}
-</body>
+		{% if user.logged_in %}
+			{{ esc_html__('Hello', 'my-theme') }} {{ user.name }}
+		{% endif %}
+
+		{{ wp_nav_menu({ theme_location: 'primary' }) }}
+
+		{{ fn('yoast_breadcrumb') }}
+
+		{% for post in posts %}
+			<h2>
+				<a href="{{ the_permalink(post) }}">
+					{{ get_the_title(post) }}
+				</a>
+			</h2>
+
+			{{ get_the_post_thumbnail(post, attr={ class: 'card__image' }) }}
+		{% endfor %}
+
+		{{ the_posts_pagination({ mid_size: 2 }) }}
+
+		{{ wp_footer() }}
+	</body>
 </html>
 ```
+
+The sections below tell each part: how a function is called and what it gives back, `fn()` for
+the functions the list does not hold, and the variables.
+
+## Calling a function
 
 Each function keeps its name and its arguments, given in order or by the name WordPress gives
 them. An argument left out keeps the default WordPress declares:
@@ -174,6 +206,127 @@ Composer package. A function of PHP itself is refused, and so is a method:
 ```
 fn() calls the functions of WordPress, of its plugins and of its themes, and "exec" is a function of PHP itself. Twig has filters and functions of its own for what PHP does.
 ```
+
+## The variables
+
+Three variables are there in every template: `site`, `theme` and `user`.
+
+```twig
+<header>
+	<a href="{{ site.url }}" rel="home">{{ site.name }}</a>
+	{% if site.description %}<p>{{ site.description }}</p>{% endif %}
+
+	{% if user.logged_in %}
+		<img src="{{ user.avatar(32) }}" alt=""> {{ user.name }}
+	{% else %}
+		<a href="{{ wp_login_url() }}">{{ esc_html__('Log in', 'my-theme') }}</a>
+	{% endif %}
+</header>
+
+<link rel="stylesheet" href="{{ theme.url }}/style.css?ver={{ theme.version }}">
+```
+
+Each one is an object, and each of its methods is one call of WordPress, made when a template
+reads it. Twig builds the variables of an extension once, on the first render, and these ask
+nothing of WordPress until a template reads them.
+
+What belongs to a page, its post or its posts, is not among them: a variable of an extension is
+the same for every template an environment renders. The file of the theme that renders a template
+passes it, as `posts` in the [usage](#usage).
+
+### site
+
+| In a template | In WordPress |
+|---|---|
+| `site.name` | `get_bloginfo('name')` |
+| `site.description` | `get_bloginfo('description')` |
+| `site.url`, `site.url('/blog')` | `home_url()`, `home_url('/blog')` |
+| `site.locale` | `get_locale()`, such as `fr_FR` |
+| `site.language` | `get_bloginfo('language')`, such as `fr-FR`, the form the `lang` attribute takes |
+| `site.charset` | `get_bloginfo('charset')` |
+| `site.option('date_format')` | `get_option('date_format')` |
+
+Whatever else `get_bloginfo()` knows, the address of a feed say, is one function away:
+`{{ get_bloginfo('rss2_url') }}`.
+
+### theme
+
+The active theme, the one `wp_get_theme()` gives:
+
+| In a template | In WordPress |
+|---|---|
+| `theme.name` | the `Name` header of its `style.css` |
+| `theme.version` | the `Version` header of its `style.css` |
+| `theme.slug` | the name of its directory: `get_stylesheet()` |
+| `theme.url` | the address of its directory: `get_stylesheet_directory_uri()` |
+| `theme.parent` | the parent theme of a child theme, as a `theme` of its own, or `null` |
+| `theme.get('TextDomain')` | any header of its `style.css`: `wp_get_theme()->get('TextDomain')` |
+
+Without a child theme, `theme.url` is also `get_template_directory_uri()`. With one, it is the
+address of the child theme, and `theme.parent.url` the address of the parent. A file a child
+theme may or may not override is found by `get_theme_file_uri('…')`, which looks in both.
+
+### user
+
+The user who is logged in, the one `wp_get_current_user()` gives:
+
+| In a template | In WordPress |
+|---|---|
+| `user.logged_in` | whether anybody is: `wp_get_current_user()->exists()` |
+| `user.id` | `ID`, which is `0` when nobody is logged in |
+| `user.name` | `display_name` |
+| `user.email` | `user_email` |
+| `user.roles` | `roles`, a list of slugs |
+| `user.can('edit_posts')` | `user_can($user, 'edit_posts')` |
+| `user.avatar`, `user.avatar(32)` | `get_avatar_url($user, ['size' => 32])`, at 96 pixels unless told otherwise |
+| `user.link` | `get_author_posts_url($user->ID)` |
+| `user.meta('phone')` | `get_user_meta($user->ID, 'phone', true)` |
+
+Nobody logged in, WordPress gives the user of ID 0, and so does `user`. `{% if user %}` always
+holds, and `{% if user.logged_in %}` is the question to ask. A function of WordPress that wants a
+user is given its ID: `{{ get_avatar(user.id, 32) }}`.
+
+### What they print
+
+WordPress keeps some text encoded already: the name and the tagline of the site, the name of a
+theme, the display name of a user. `site.name`, `site.description`, `theme.name` and `user.name`
+hand that text over marked safe, so that it is printed once, as WordPress prints it: `L'Atelier`,
+and not `L&#039;Atelier`. Empty, such a text is an empty string, which a condition reads as false.
+
+Everything else comes as WordPress gives it, and is printed as the `autoescape` option says, like
+any value: an address, an option, a meta, a role. `{{ site.option('footer_text') }}` is escaped.
+
+### Adding to them
+
+The variables are three classes, `Site`, `Theme` and `User`, in
+`OffsetWP\Twig\Extension\WordPressExtension\Context`, and none of them is final. A project extends
+one with what it needs, and registers its own class under the same name: a global of the
+environment takes the place of a variable of an extension, and a variable passed to a template
+takes the place of both.
+
+```php
+namespace App\Twig;
+
+use OffsetWP\Twig\Extension\WordPressExtension\Context\Site as WordPressSite;
+
+class Site extends WordPressSite {
+	public function phone(): string {
+		return (string) get_option( 'business_phone' );
+	}
+}
+```
+
+```php
+// config/packages/twig.php, with App\Twig\Site declared as a service
+TwigConfig::create()
+	->extension( WordPressExtension::class )
+	->globalService( 'site', \App\Twig\Site::class )
+	->apply( $container );
+```
+
+`{{ site.phone }}` reads the option, and `{{ site.name }}` is still the name of the site. A class
+that extends `Theme` or `User` reaches the `WP_Theme` or the `WP_User` behind it with
+`$this->model()`.
 
 ## The functions
 

@@ -11,8 +11,12 @@ declare( strict_types=1 );
 namespace OffsetWP\Twig\Extension;
 
 use OffsetWP\Twig\Extension\WordPressExtension\Catalogue;
+use OffsetWP\Twig\Extension\WordPressExtension\Context\Site;
+use OffsetWP\Twig\Extension\WordPressExtension\Context\Theme;
+use OffsetWP\Twig\Extension\WordPressExtension\Context\User;
 use OffsetWP\Twig\Extension\WordPressExtension\Result;
 use Twig\Extension\AbstractExtension;
+use Twig\Extension\GlobalsInterface;
 use Twig\TwigFunction;
 
 /**
@@ -26,6 +30,11 @@ use Twig\TwigFunction;
  * holds the address, and `{{ the_title()|upper }}` changes the title. Every other function of
  * WordPress, of a plugin or of a theme is one call of fn() away.
  *
+ * Three variables come with the functions: site, theme and user, for the site, the active
+ * theme and the user who is logged in. Their methods call WordPress when a template reads
+ * them: `{{ site.name }}` is get_bloginfo( 'name' ), `{{ theme.url }}` the address of the
+ * theme, and `{% if user.logged_in %}` asks whether anybody is.
+ *
  * Every function is marked safe for HTML. What WordPress hands over is printed the way
  * WordPress prints it: `{{ __( 'A & B' ) }}` reads "A & B", and a template escapes where a
  * classic theme would, with esc_html() and the like. Whatever else a template prints, a
@@ -36,7 +45,7 @@ use Twig\TwigFunction;
  * qualified name such as Twig\TwigFunction would resolve to a class beneath it that does not
  * exist. Every Twig class is imported, always.
  */
-final class WordPressExtension extends AbstractExtension {
+final class WordPressExtension extends AbstractExtension implements GlobalsInterface {
 
 	/**
 	 * The name templates call fn() by.
@@ -95,6 +104,33 @@ final class WordPressExtension extends AbstractExtension {
 		$functions[] = new TwigFunction( self::FN, array( self::class, 'call' ), self::CAPTURED );
 
 		return $functions;
+	}
+
+	/**
+	 * {@inheritDoc}
+	 *
+	 * The site, the active theme and the user who is logged in, as a template reads them:
+	 * `{{ site.name }}`, `{{ theme.url }}`, `{% if user.logged_in %}`. Each is an object whose
+	 * methods call WordPress when a template calls them.
+	 *
+	 * Twig asks an extension for its variables when the first template renders, and keeps
+	 * what it was given for as long as the environment lives. Building these objects asks
+	 * nothing of WordPress. So whenever that first render happens, before WordPress has
+	 * determined who is logged in for instance, the variables read WordPress later, when a
+	 * template reads them, and a template that reads none of them renders without WordPress.
+	 *
+	 * A variable passed to a template takes the place of one of these, and so does a global
+	 * of the environment. A project that extends Site and registers its own class as the
+	 * global "site" has its class read instead of this one.
+	 *
+	 * @return array{site: Site, theme: Theme, user: User}
+	 */
+	public function getGlobals(): array {
+		return array(
+			'site'  => new Site(),
+			'theme' => new Theme(),
+			'user'  => new User(),
+		);
 	}
 
 	/**

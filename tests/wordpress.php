@@ -13,8 +13,14 @@
  * template of the theme, header.php or footer.php, and print what it prints. What they print
  * is fixed and short, so that an assertion can spell it out.
  *
- * wp_footer() is left out on purpose: it is the function of the catalogue a test calls to
- * see what a template is told when WordPress has not declared what it calls.
+ * The others describe the site, the theme and the user the variables of the extension read:
+ * a site called Fish & Chips, kept encoded as WordPress keeps it, with no tagline; a child
+ * theme of the same name; and Ada, who is logged in. wp_get_theme() and wp_get_current_user()
+ * build a new object on each call, so that a test can tell whether a variable asked twice.
+ *
+ * wp_footer() and wp_get_document_title() are left out on purpose: they are the functions of
+ * the catalogue, one that prints and one that returns, that a test calls to see what a
+ * template is told when WordPress has not declared what it calls.
  *
  * Every declaration is guarded, so that a process which does have the platform loaded
  * keeps the platform's own. The analyser reads this file too, so it is also where the
@@ -205,5 +211,187 @@ if ( ! function_exists( 'wp_nav_menu' ) ) {
 		echo $menu;
 
 		return null;
+	}
+}
+
+if ( ! function_exists( 'get_bloginfo' ) ) {
+	/**
+	 * Returns what WordPress knows of the site: its name, kept encoded as WordPress keeps
+	 * it, no tagline, its language and its character set. Any other key is the name, as it
+	 * is in WordPress.
+	 *
+	 * @param string $show   What to return.
+	 * @param string $filter Whether to filter the value for display.
+	 * @return string
+	 */
+	function get_bloginfo( string $show = '', string $filter = 'raw' ): string {
+		unset( $filter );
+
+		return match ( $show ) {
+			'description' => '',
+			'language'    => 'en-GB',
+			'charset'     => 'UTF-8',
+			default       => 'Fish &amp; Chips',
+		};
+	}
+}
+
+if ( ! function_exists( 'home_url' ) ) {
+	/**
+	 * Returns the address of the home page, or of a path below it.
+	 *
+	 * @param string      $path   A path relative to the home page.
+	 * @param string|null $scheme The scheme to give the address.
+	 * @return string
+	 */
+	function home_url( string $path = '', ?string $scheme = null ): string {
+		unset( $scheme );
+
+		return 'https://example.test' . ( '' === $path ? '' : '/' . ltrim( $path, '/' ) );
+	}
+}
+
+if ( ! function_exists( 'get_locale' ) ) {
+	/**
+	 * Returns the locale of the site.
+	 *
+	 * @return string
+	 */
+	function get_locale(): string {
+		return 'en_GB';
+	}
+}
+
+if ( ! function_exists( 'get_option' ) ) {
+	/**
+	 * Returns an option: a date format, and a motto saved as it was typed, markup and all.
+	 *
+	 * @param string $option        The name of the option.
+	 * @param mixed  $default_value What to return when the option does not exist.
+	 * @return mixed
+	 */
+	function get_option( string $option, mixed $default_value = false ): mixed {
+		return match ( $option ) {
+			'date_format' => 'j F Y',
+			'motto'       => '<b>Fresh</b> & hot',
+			default       => $default_value,
+		};
+	}
+}
+
+if ( ! function_exists( 'wp_get_theme' ) ) {
+	/**
+	 * Returns the active theme, Fish & Chips, a child theme of Chippy, as a new object on
+	 * each call.
+	 *
+	 * @param string $stylesheet The directory name of a theme, or nothing for the active one.
+	 * @param string $theme_root The directory the theme is in.
+	 * @return WP_Theme
+	 */
+	function wp_get_theme( string $stylesheet = '', string $theme_root = '' ): WP_Theme {
+		unset( $stylesheet, $theme_root );
+
+		return new WP_Theme(
+			'fish-and-chips',
+			array(
+				'Name'       => 'Fish &amp; Chips',
+				'Version'    => '2.0.0',
+				'TextDomain' => 'fish-and-chips',
+			),
+			new WP_Theme(
+				'chippy',
+				array(
+					'Name'    => 'Chippy',
+					'Version' => '1.4.0',
+				)
+			)
+		);
+	}
+}
+
+if ( ! function_exists( 'wp_get_current_user' ) ) {
+	/**
+	 * Returns the user who is logged in, Ada, an editor whose display name WordPress keeps
+	 * encoded, as a new object on each call.
+	 *
+	 * @return WP_User
+	 */
+	function wp_get_current_user(): WP_User {
+		return new WP_User(
+			7,
+			array(
+				'display_name' => 'Ada &amp; co',
+				'user_email'   => 'ada@example.test',
+			),
+			array( 'editor' )
+		);
+	}
+}
+
+if ( ! function_exists( 'user_can' ) ) {
+	/**
+	 * Says whether a user has a capability: an editor can edit posts, and nothing more.
+	 *
+	 * @param int|WP_User $user       The user, or its ID.
+	 * @param string      $capability The capability.
+	 * @param mixed       ...$args    What a meta capability takes.
+	 * @return bool
+	 */
+	function user_can( int|WP_User $user, string $capability, mixed ...$args ): bool {
+		unset( $args );
+
+		return $user instanceof WP_User && in_array( 'editor', $user->roles, true ) && 'edit_posts' === $capability;
+	}
+}
+
+if ( ! function_exists( 'get_avatar_url' ) ) {
+	/**
+	 * Returns the address of the avatar of a user, at the size asked for, and false for
+	 * anything but a user, where WordPress would look further.
+	 *
+	 * @param mixed                     $id_or_email The user, its ID or its email address.
+	 * @param array<string, mixed>|null $args        The size of the image, among others.
+	 * @return string|false
+	 */
+	function get_avatar_url( mixed $id_or_email, ?array $args = null ): string|false {
+		if ( ! $id_or_email instanceof WP_User ) {
+			return false;
+		}
+
+		$size = is_int( $args['size'] ?? null ) ? $args['size'] : 96;
+
+		return sprintf( 'https://example.test/avatar/%d?s=%d', $id_or_email->ID, $size );
+	}
+}
+
+if ( ! function_exists( 'get_author_posts_url' ) ) {
+	/**
+	 * Returns the address of the posts of an author.
+	 *
+	 * @param int    $author_id       The ID of the author.
+	 * @param string $author_nicename The slug of the author.
+	 * @return string
+	 */
+	function get_author_posts_url( int $author_id, string $author_nicename = '' ): string {
+		unset( $author_nicename );
+
+		return 'https://example.test/?author=' . $author_id;
+	}
+}
+
+if ( ! function_exists( 'get_user_meta' ) ) {
+	/**
+	 * Returns a meta of a user: the phone number of Ada, and an empty string for any other,
+	 * which is what WordPress gives for a single meta a user does not have.
+	 *
+	 * @param int    $user_id The ID of the user.
+	 * @param string $key     The key of the meta.
+	 * @param bool   $single  Whether to return one value rather than all of them.
+	 * @return mixed
+	 */
+	function get_user_meta( int $user_id, string $key = '', bool $single = false ): mixed {
+		unset( $single );
+
+		return 7 === $user_id && 'phone' === $key ? '+44 20 7946 0000' : '';
 	}
 }

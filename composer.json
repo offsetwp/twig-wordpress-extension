@@ -1,7 +1,7 @@
 {
 	"name": "offsetwp/twig-wordpress-extension",
 	"type": "library",
-	"description": "The functions of WordPress in Twig: {{ the_permalink() }}, {{ wp_head() }}, and fn() for every other one",
+	"description": "The functions of WordPress in Twig: {{ the_permalink() }}, {{ wp_head() }}, fn() for every other one, and the variables site, theme and user",
 	"license": "MIT",
 	"authors": [
 		{

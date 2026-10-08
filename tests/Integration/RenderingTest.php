@@ -11,6 +11,9 @@ declare( strict_types=1 );
 namespace OffsetWP\Twig\Extension\WordPressExtension\Tests\Integration;
 
 use OffsetWP\Twig\Extension\WordPressExtension;
+use OffsetWP\Twig\Extension\WordPressExtension\Context\Site;
+use OffsetWP\Twig\Extension\WordPressExtension\Context\Theme;
+use OffsetWP\Twig\Extension\WordPressExtension\Context\User;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Twig\Environment;
@@ -25,6 +28,9 @@ use Twig\Loader\ArrayLoader;
  * whether the environment yields or not.
  */
 #[CoversClass( WordPressExtension::class )]
+#[CoversClass( Site::class )]
+#[CoversClass( Theme::class )]
+#[CoversClass( User::class )]
 final class RenderingTest extends TestCase {
 
 	/**
@@ -275,9 +281,139 @@ final class RenderingTest extends TestCase {
 	 */
 	public function testAMissingFunctionThatReturnsSaysWhatIsMissing(): void {
 		$this->expectException( Error::class );
-		$this->expectExceptionMessage( 'The function "get_bloginfo" does not exist. WordPress declares it once it has loaded' );
+		$this->expectExceptionMessage( 'The function "wp_get_document_title" does not exist. WordPress declares it once it has loaded' );
 
-		$this->render( "{{ get_bloginfo('name') }}" );
+		$this->render( '{{ wp_get_document_title() }}' );
+	}
+
+	/**
+	 * The name of the site is printed once, as WordPress prints it, in an environment that
+	 * escapes for HTML: WordPress keeps it encoded, and the variable hands it over marked safe.
+	 *
+	 * @return void
+	 */
+	public function testTheNameOfTheSiteIsPrintedOnce(): void {
+		$this->assertSame(
+			'<a href="https://example.test">Fish &amp; Chips</a>',
+			$this->render( '<a href="{{ site.url }}">{{ site.name }}</a>' )
+		);
+	}
+
+	/**
+	 * A site without a tagline has none to a condition, alone or beside another one.
+	 *
+	 * @return void
+	 */
+	public function testAMissingTaglineIsFalseToACondition(): void {
+		$this->assertSame(
+			'none|none',
+			$this->render( "{% if site.description %}tagline{% else %}none{% endif %}|{{ site.description and site.name ? 'tagline' : 'none' }}" )
+		);
+	}
+
+	/**
+	 * An option holds what was saved into it, and is printed escaped like any value.
+	 *
+	 * @return void
+	 */
+	public function testAnOptionIsEscapedLikeAnyValue(): void {
+		$this->assertSame( '&lt;b&gt;Fresh&lt;/b&gt; &amp; hot', $this->render( "{{ site.option('motto') }}" ) );
+	}
+
+	/**
+	 * The active theme gives its address and its version, and its parent the address of the
+	 * parent theme.
+	 *
+	 * @return void
+	 */
+	public function testTheThemeAndItsParentGiveTheirAddresses(): void {
+		$this->assertSame(
+			'https://example.test/wp-content/themes/fish-and-chips|2.0.0|https://example.test/wp-content/themes/chippy',
+			$this->render( '{{ theme.url }}|{{ theme.version }}|{{ theme.parent.url }}' )
+		);
+	}
+
+	/**
+	 * The user who is logged in is read by a condition, their avatar at a size, and their
+	 * name printed once.
+	 *
+	 * @return void
+	 */
+	public function testTheUserWhoIsLoggedInIsRead(): void {
+		$this->assertSame(
+			'<img src="https://example.test/avatar/7?s=32" alt=""> Ada &amp; co',
+			$this->render( '{% if user.logged_in %}<img src="{{ user.avatar(32) }}" alt=""> {{ user.name }}{% endif %}' )
+		);
+	}
+
+	/**
+	 * Nobody logged in, the user is there all the same, as WordPress gives it, and logged_in
+	 * is what tells.
+	 *
+	 * @return void
+	 */
+	public function testNobodyLoggedInIsToldByLoggedIn(): void {
+		$this->assertSame(
+			'user|guest',
+			$this->render( "{{ user ? 'user' : 'nobody' }}|{{ user.logged_in ? user.name : 'guest' }}", array( 'user' => new User( new \WP_User() ) ) )
+		);
+	}
+
+	/**
+	 * A variable passed to a template takes the place of the variable of the extension.
+	 *
+	 * @return void
+	 */
+	public function testAVariableOfTheTemplateTakesThePlaceOfTheExtensions(): void {
+		$this->assertSame( 'mine', $this->render( '{{ site }}', array( 'site' => 'mine' ) ) );
+	}
+
+	/**
+	 * A project extends the site with what it needs and registers its own class as a global
+	 * of the environment, which takes the place of the variable of the extension: what it
+	 * added and what it inherited are both read.
+	 *
+	 * @return void
+	 */
+	public function testAGlobalOfTheEnvironmentTakesThePlaceOfTheExtensions(): void {
+		$twig = new Environment( new ArrayLoader( array( 'page.twig' => '{{ site.phone }}|{{ site.name }}' ) ), array( 'strict_variables' => true ) );
+
+		$twig->addExtension( new WordPressExtension() );
+		$twig->addGlobal(
+			'site',
+			new class() extends Site {
+				/**
+				 * The phone number of the business.
+				 *
+				 * @return string
+				 */
+				public function phone(): string {
+					return '+44 20 7946 0000';
+				}
+			}
+		);
+
+		$this->assertSame( '+44 20 7946 0000|Fish &amp; Chips', $twig->render( 'page.twig' ) );
+	}
+
+	/**
+	 * A template that reads neither the theme nor the user has WordPress asked for neither.
+	 *
+	 * @return void
+	 */
+	public function testATemplateThatReadsNoThemeAndNoUserAsksForNeither(): void {
+		$twig = new Environment( new ArrayLoader( array( 'page.twig' => '{{ site.name }}' ) ), array( 'strict_variables' => true ) );
+
+		$twig->addExtension( new WordPressExtension() );
+		$twig->render( 'page.twig' );
+
+		$theme = $twig->getGlobals()['theme'];
+		$user  = $twig->getGlobals()['user'];
+
+		$this->assertInstanceOf( Theme::class, $theme );
+		$this->assertInstanceOf( User::class, $user );
+		$this->assertNull( ( new \ReflectionProperty( Theme::class, 'model' ) )->getValue( $theme ) );
+		$this->assertNull( ( new \ReflectionProperty( User::class, 'model' ) )->getValue( $user ) );
 	}
 
 	/**

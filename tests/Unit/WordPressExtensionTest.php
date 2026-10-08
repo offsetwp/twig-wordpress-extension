@@ -11,6 +11,9 @@ declare( strict_types=1 );
 namespace OffsetWP\Twig\Extension\WordPressExtension\Tests\Unit;
 
 use OffsetWP\Twig\Extension\WordPressExtension\Catalogue;
+use OffsetWP\Twig\Extension\WordPressExtension\Context\Site;
+use OffsetWP\Twig\Extension\WordPressExtension\Context\Theme;
+use OffsetWP\Twig\Extension\WordPressExtension\Context\User;
 use OffsetWP\Twig\Extension\WordPressExtension\Result;
 use OffsetWP\Twig\Extension\WordPressExtension;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -62,10 +65,10 @@ final class WordPressExtensionTest extends TestCase {
 	 * @return void
 	 */
 	public function testAFunctionThatReturnsAndIsNotDeclaredYetIsWrapped(): void {
-		$function = $this->declared( 'get_bloginfo' );
+		$function = $this->declared( 'wp_get_document_title' );
 
-		$this->assertFalse( function_exists( 'get_bloginfo' ) );
-		$this->assertSame( Result::Returned, Catalogue::FUNCTIONS['get_bloginfo'] );
+		$this->assertFalse( function_exists( 'wp_get_document_title' ) );
+		$this->assertSame( Result::Returned, Catalogue::FUNCTIONS['wp_get_document_title'] );
 		$this->assertInstanceOf( \Closure::class, $function->getCallable() );
 		$this->assertTrue( $function->isVariadic() );
 	}
@@ -79,6 +82,22 @@ final class WordPressExtensionTest extends TestCase {
 		foreach ( ( new WordPressExtension() )->getFunctions() as $function ) {
 			$this->assertSame( array( 'html' ), $function->getSafe( new EmptyNode() ), $function->getName() );
 		}
+	}
+
+	/**
+	 * The site, the theme and the user are the variables of every template, and building
+	 * them asks nothing of WordPress: the theme and the user are asked for when a template
+	 * first reads them.
+	 *
+	 * @return void
+	 */
+	public function testTheVariablesAreBuiltWithoutAskingWordPress(): void {
+		$globals = ( new WordPressExtension() )->getGlobals();
+
+		$this->assertSame( array( 'site', 'theme', 'user' ), array_keys( $globals ) );
+		$this->assertInstanceOf( Site::class, $globals['site'] );
+		$this->assertNull( ( new \ReflectionProperty( Theme::class, 'model' ) )->getValue( $globals['theme'] ) );
+		$this->assertNull( ( new \ReflectionProperty( User::class, 'model' ) )->getValue( $globals['user'] ) );
 	}
 
 	/**

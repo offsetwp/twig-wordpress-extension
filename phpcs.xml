@@ -31,6 +31,14 @@
 	-->
 	<rule ref="Generic.NamingConventions.CamelCapsFunctionName.ScopeNotCamelCaps">
 		<exclude-pattern>tests/*</exclude-pattern>
+		<!--
+			And the classes of the template variables. Their public methods are what a
+			template reads: user.logged_in calls logged_in(), and Twig finds a method by its
+			name as the template spells it. Camel caps would have templates write
+			user.loggedIn, beside the snake case WordPress gives everything else. The rule
+			stays on for the rest of src/.
+		-->
+		<exclude-pattern>src/WordPressExtension/Context/*</exclude-pattern>
 	</rule>
 
 	<!--
