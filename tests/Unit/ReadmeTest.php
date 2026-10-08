@@ -57,6 +57,16 @@ final class ReadmeTest extends TestCase {
 	}
 
 	/**
+	 * The README says how many functions the list holds, and the number is the catalogue's:
+	 * written by hand, it would stay behind the first function added.
+	 *
+	 * @return void
+	 */
+	public function testTheReadmeCountsTheFunctionsOfTheCatalogue(): void {
+		$this->assertStringContainsString( count( Catalogue::FUNCTIONS ) . ' functions', $this->readme() );
+	}
+
+	/**
 	 * The README, as it is published.
 	 *
 	 * @return string

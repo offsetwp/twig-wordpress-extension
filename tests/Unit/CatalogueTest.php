@@ -38,6 +38,8 @@ final class CatalogueTest extends TestCase {
 		'esc_attr__',
 		'esc_html__',
 		'esc_url',
+		'get_footer',
+		'get_header',
 		'get_search_form',
 		'get_search_query',
 		'get_the_archive_description',

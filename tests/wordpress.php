@@ -9,8 +9,9 @@
  * Each one keeps the name, the parameters and the way of handing back its result of the
  * function it stands in for — which is the whole of what this extension depends on. One
  * prints, another returns, a third prints and returns the same markup, a fourth prints and
- * returns a boolean, and a fifth prints or returns as an argument says. What they print is
- * fixed and short, so that an assertion can spell it out.
+ * returns a boolean, and a fifth prints or returns as an argument says. Two more load a
+ * template of the theme, header.php or footer.php, and print what it prints. What they print
+ * is fixed and short, so that an assertion can spell it out.
  *
  * wp_footer() is left out on purpose: it is the function of the catalogue a test calls to
  * see what a template is told when WordPress has not declared what it calls.
@@ -146,6 +147,39 @@ if ( ! function_exists( 'dynamic_sidebar' ) ) {
 		echo '<aside class="widget">Hello</aside>';
 
 		return true;
+	}
+}
+
+if ( ! function_exists( 'get_header' ) ) {
+	/**
+	 * Loads the header template of the theme, which prints the header of the site:
+	 * header-{name}.php when the theme has one, header.php otherwise. This theme has
+	 * header.php and header-shop.php.
+	 *
+	 * @param string|null          $name The name of the specialized header.
+	 * @param array<string, mixed> $args What the template is handed.
+	 * @return void
+	 */
+	function get_header( ?string $name = null, array $args = array() ): void {
+		unset( $args );
+
+		echo 'shop' === $name ? '<header class="shop">Shop</header>' : '<header>Fish &amp; Chips</header>';
+	}
+}
+
+if ( ! function_exists( 'get_footer' ) ) {
+	/**
+	 * Loads the footer template of the theme, which prints the footer of the site: footer.php,
+	 * the only one this theme has.
+	 *
+	 * @param string|null          $name The name of the specialized footer.
+	 * @param array<string, mixed> $args What the template is handed.
+	 * @return void
+	 */
+	function get_footer( ?string $name = null, array $args = array() ): void {
+		unset( $name, $args );
+
+		echo '<footer>Fish &amp; Chips, since 1860</footer>';
 	}
 }
 

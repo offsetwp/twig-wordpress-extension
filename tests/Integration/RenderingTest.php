@@ -189,6 +189,34 @@ final class RenderingTest extends TestCase {
 	}
 
 	/**
+	 * The header and the footer a theme keeps in header.php and footer.php are printed where
+	 * the template calls get_header() and get_footer(), in an environment that yields: called
+	 * directly, what the files print would land outside what the template renders.
+	 *
+	 * @return void
+	 */
+	public function testTheHeaderAndTheFooterOfTheThemeArePrintedWhereTheTemplateCallsThem(): void {
+		$this->assertSame(
+			'<header>Fish &amp; Chips</header><main>Menu</main><footer>Fish &amp; Chips, since 1860</footer>',
+			$this->render( '{{ get_header() }}<main>Menu</main>{{ get_footer() }}', array(), array( 'use_yield' => true ) )
+		);
+	}
+
+	/**
+	 * A specialized header is asked for by its name, in order or as WordPress names the
+	 * argument, and a name the theme has no template for falls back to header.php, as in
+	 * WordPress.
+	 *
+	 * @return void
+	 */
+	public function testASpecializedHeaderIsAskedForByItsName(): void {
+		$this->assertSame(
+			'<header class="shop">Shop</header>|<header class="shop">Shop</header>|<header>Fish &amp; Chips</header>',
+			$this->render( "{{ get_header('shop') }}|{{ get_header(name='shop') }}|{{ get_header('blog') }}" )
+		);
+	}
+
+	/**
 	 * A function no catalogue lists is called through fn(), with named arguments, and its result is
 	 * printed as it is given.
 	 *
